@@ -1,0 +1,69 @@
+EC440 
+Ye Chen
+HW1 - Simple Shell
+
+Features implemented:
+'-n' flag
+< character
+> character
+| pipes (single and multiple + combinations of < and/or >)
+& (uses signal(SIGCHLD, SIG_IGN) to kill zombies)
+CTRL-D (works... unless the previous execution of execvp for some reason fails)
+
+Overview Main Function:
+- everything in a while loop
+- used fgets to obtain user input and store into input buffer
+- parse input buffer into an array of array of strings using strtok (<, >, |, &, " ")
+- array of array of strings is as such: char* array[256][256];  //will be referred to as data structure for rest of readme
+- example: "cat < a.txt | sort" would be split into {{"cat"},{"a.txt"},{"sort"}}
+- pass this and the original input string to a processing function
+- processing function has boolean checks for existence of meta-characters
+
+Processing commands based on 3 main if statements executed in this sequential order:
+
+if < exists:
+- fd = open(filename that was stored in my data structure)
+- dup2(fd, stdin) 
+- close(fd)
+- set an int variable for the index of data structure that includes corresponding commands necessary for execvp
+
+if | exists:
+- count how many pipes is in original string
+- pass this # and the data structure into a pipe_line function that I created
+pipe_line function:
+- while loop based on number of pipes
+- if statement to account for existence of < as the way the data structure is set up, filenames are stored and it is 
+thus necessary to skip that entry in the data structure
+- fd[2] for file descriptors of pipe, then pipe(fd) is used to create pipe
+- write part of pipe (fd[1]) is dup2'd to stdin
+- save fd[0] to another variable
+- loop goes to next iteration, next pipe is created, fd[0] != 0 and thus we dup it into stdin -> this makes it so the 
+input of the next pipe takes the output of the previous pipe
+- same process, continue to repeat till loop end
+- final thing before function ends: dup the final pipe's fd[0] to STDIN
+
+Back to if | statement:
+- adjust a variable to reflect number of pipes (and possibly +1 if '<' exists), this number will be passed to the final execVP
+
+if > exists:
+- fdo = creat(corresponding filename stored in data structure, always last entry if > exists)
+- dup2(fdo, stdout) 
+- close(fdo)
+
+final component:
+fork
+parent -> wait on child as usual
+child -> execvp(argument[some int][0], argument[some int])
+
+other features explanation:
+'-n' flag suppresses "my_shell$" outputs
+& prevents waitpid() calls
+
+when using execvp, one must fork to create a duplicate process to use execvp within, otherwise main program gets shut down
+when execvp finishes executing
+
+references:
+stack overflow
+powerpoint slides
+piazza
+

@@ -1,0 +1,72 @@
+Ye Chen
+
+Homework 5 - File System
+This project involves the implementation of a file system, consisting of the following functions:
+
+int make_fs(char *disk_name);
+int mount_fs(char *disk_name);
+int umount_fs(char *disk_name);
+int fs_open(char *name);
+int fs_close(int fd);
+int fs_create(char *name);
+int fs_delete(char *name);
+int fs_get_filesize(int desc);
+int fs_read(int fd, void *buf, size_t nbytes);
+int fs_write(int fd, void *buf, size_t nbytes);
+int fs_listfiles(char ***files);
+int fs_lseek(int filnum, off_t offset);
+int fs_truncate(int fd, off_t length);
+
+As of current writing, all tests pass besides Tests EC. 
+
+The file system is primarily managed by three functions:
+make_fs, mount_fs and umount_fs
+
+make_fs creates the file_system, which is a virtual disk residing in an actual file system. This virtual disk consists of 
+8192 blocks, each block holding 4 KB. These blocks are split up into half, the first 4096 blocks reserved for meta-data
+whereas the final 4096 is reserved for actual files. These files can be of varying length, and if they are larger than
+the block size of 4KB, then the files are split up into multiple blocks. These blocks do not have to be contiguous and are
+linked together by a File Assignment Table (FAT). Currently, my implementation of FAT utilizes calloc to allocate 8192 entries
+of ints (4 bytes each). Each entry contains either the FREE value of -1, a positive number denoting the index location of the next 
+block for a file, or the ENDOF value pf -2 that denotes the end of file block for a file. In addition to this FAT metadata, 
+there is also a super block that keeps track of metadata block locations and sizes and also a directory data structure of
+struct dir_entry that stores the index of the head block of a file, the reference count, size of file, name of file and
+the used status of a file. 
+
+The functionality of make_fs involves creating the disk, opening the disk, initializing the 3 aforementioned data structures and their variables. The FAT is initialized to be
+all FREE values. I used the provided block_write() function to assign these data structures to actual blocks within the disk. This is a
+mostly straightforward process, but FAT required splitting up into multiple components because the size of fat is 8192 * 4 bytes, but each
+block can only fit 4096 bytes, meaning my FAT was split up over 8 blocks. Once all setup is done, the pointer variables for the 
+data structures are freed and the file is closed.
+
+mount_fs and umount_fs are fairly straight forward. make_fs made the disk, so now you need to mount it to use it and unmount it when you no longer need it.
+This involves setting up the same data structure variables mentioned earlier, but this time I used the provided block_read function to do so. While make_fs
+initializes and frees the data structure variables, only mount_fs initializes them whereas umount_fs frees them after block_writing them.
+
+
+All files are created with fs_create. This function allows you to specify the name. The corresponding entries in the DIR data structure are activated
+and a free FAT block is found and assigned. The file, however, is empty. fs_delete is the counterpart to create, and it cleans up the data structure entry
+and assigned FAT blocks (assigns blocks to FREE alongside other variable changes).
+
+fs_open and fs_close are very important functions for allowing the manipulation of files. fs_open creates essentially a file descriptor that points to a file. This is done
+via the file_descriptor fildes[MAX_FILDES] global variable that has struct filedescriptor entries with variables such as used, file index and the offset that points to a location
+within the file. Multiple file descriptors can point to the same file and exist at the same time. This increases the ref_count variable in struct dir_entry within the directory data structure.
+fs_close sets these entries to unused and decrements the ref_count. 
+
+fs_get_filesize returns the file size of a file. fs_truncate cuts a file down to a specified length. It will lose info if it was cut!
+fs_listfiles creates and populates an array of all filesin the disk.
+
+fs_write, fs_read and lseek are all very important functions that heavily related to each other.
+
+fs_write involves writing nbytes content to a file from a buffer passed to the function. However, a file consists of multiple blocks that are non-contiguous.
+There is also an offset variable as apart of the file descriptor that points to a specific part of a file to begin writing to. Currently, my implementation of fs_write
+involves measuring the offset + nbytes versus the original file size and the remaining disk space. I calculate the new size and also move a current block iterator to 
+the block of which the offset is pointing to. From then on, I write byte by byte the amount of bytes specified into block_state array variables. These block_state array variables
+essentially are copies of the blocks of which the file consists of. Essentially, I am copying the file blocks, editing them, and then replacing the original. It is important to note that it
+is impossible for files to get more written to them than the disk size allows, and in these cases I merely trim nbytes to fit the remaining disk size. It is also possible to write more data 
+than a file can handle, in which case (as long as remaining disk size permits), I add file blocks to the file and start writing to those new blocks. 
+
+fs_read involves very similar logic to write, where I calculate how much I need or can read and then proceed to copy the blocks into block_state arrays and begin reading them into
+the buffer. In both cases of fs_read and write however, they increment the offset and this can put the offset at the very end of the file, making it useless for future read/write operations.
+This is why lseek exists, which modifies the offset location for a specified file so write/read operations can commence anywhere within a file. 
+

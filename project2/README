@@ -1,0 +1,48 @@
+Ye Chen
+Project 2
+
+Sources:
+Man pages
+Stack overflow
+Lecture slides/recordings
+oracle pthreads library documentation 
+
+Project 2 Implementation List: 
+- Creation of threads [?]  
+- Preemption of Threads [?]
+- Proper Setjmp/longjmp, TCB and jump buffer ASM values for process execution [?]
+- Cleans up stack [?]
+- Supports many threads [?]
+- pthread_create, pthread_exit, schedule, etc required functions implemented [?]
+- round robin scheduling [?]
+
+Solution:
+
+Round Robin Scheduling was implemented with a doubly-linked circular linked list of struct threads. This struct thread was essentially my TCB but with
+pointers to next and previous. Miscellaneous functions and variables for linked list functionality (insert function, for example) was also implemented.
+- this made it rather easy to traverse the threads one by one and also delete them when I was done
+- I actually chose not to set the state of any threads to EXITED, as it was a waste of time when I could merely delink the thread from the list and then free it
+- EXITED still serves functionality in directing when to free a thread scheduled for deletion
+
+pthread_create() was utilized to create threads. It required malloc-ing the required stack size. Malloc returns a pointer to the lowest value of the stack, and so
+we would have to increment malloc by size of stack - 1 to get the top address. The pthread_exit() address was then placed in the top address as the return value.
+- our jmp_buf in this case needed to be modified
+- used setjmp on our jmp_buf variable to set up the registers we needed
+- then stored a start routine function addres and args into corresponding registers, same thing with stack pointer and program counter but we had to mangle those to get them into the desired register properly
+
+Had to set an alarm for 50,000 microseconds (50 milliseconds) that referred to a sig_handler function that would enable the schedule function. SIGALRM was sent from ualarm function which was created in the 
+initiated() function (my helper function).
+
+Schedule function simply checks for whether the current threads setjmp returns 0 or not. setjmp returns 0 normally, but returns a non-zero number if longjmp has fully executed for the buffer. 
+- this means that !setjmp(buf) would end up being true, it's a solid condition that basically says "the longjmp for this jmp_buf isn't completed, therefore TRUE"
+- if READY, set state to RUNNING and call longjmp
+- if RUNNING, set state to READY and move to next thread
+
+pthread_exit() pretty much happens whenever longjmp is executed all the way through, as the address of this function is stored at the very top of the stack
+- pthread_exit also delinks a finished thread from the linked list
+
+Issues:
+- understanding the stack diagram and frame data in accordance with the registers was difficult
+- GDB debugging proved useful, but not that useful as some issues especially with registers was difficult to comprehend/ascertain by GDB
+- seg faults. Seg faults everywhere. GDB helped maybe a quarter of the time. Drawing the stack and understanding the architecture is truly important here rather than GDB itself
+- testing was also slightly difficult to tell if round robin/preemption was working properly but not that big of an issue

@@ -1,0 +1,36 @@
+Ye Chen
+References:
+HW4 discussion slides
+Stack Overflow
+
+
+Project 4
+All test cases passed! Implemented everything!
+
+Tls write: 
+- error checked LSA
+- used write functionality from slides
+- make sure to protect and unprotect pages 
+- check ref-count in case of CoW
+
+Tls create:
+- error checked LSA
+- created new pages and LSA
+- protected pages
+- set into hash, gotta check if there is collision (in which case, use linked list)
+
+tls read:
+- same as write honestly but easier, since no CoW to deal with
+
+tls destroy:
+- error check for LSA
+- always destroy current threads LSA
+- but only sometimes destroy pages
+- destroy pages if ref count == 1
+- do not destroy if ref count > 1, instead just dec ref count
+
+tls clone:
+- error check both current and target LSA
+- clone functionality from slides
+- create new hash element and TLS
+- point to pages of target thread, increment ref count to indicate CoW

@@ -1,0 +1,52 @@
+Ye Chen
+Project 2
+
+Sources:
+Man pages
+Stack overflow
+Lecture slides/recordings
+oracle pthreads library documentation 
+
+Tests passed as of now:
+Everything! 
+
+Implementation:
+1. lock() and unlock()
+Blocks SIGALRM using sigprocmask. Should be properly implemented. I use it in all the subsequent functions
+to make sure scheduler doesn't pop in during the following functions. 
+
+2. pthread_join()
+pthread_join currently blocks a target thread and also saves its ID for the blocked thread.
+It calls schedule and when schedule ends, it checks if value pointer is not NULL, in which case it will
+save the return value (the arg). 
+
+Schedule had to be modified for pthread_join to work, if schedule comes across a blocked thread, it checks
+the target thread and sees if it is exited. If it is exited, then it sets the blocked thread to ready. 
+
+3. Semaphores
+
+- sem_init -> initializes an unnamed semaphore with a struct queue and current value. 
+The most important component here is the queue. The queue (struct qt) includes a struct *thread and a pointer to 
+next queue. Initializing a queue requires usage of the push and pop functions. The design of this queue
+is meant to be FIFO (first in first out). Threads that are blocked by semaphore are entered into this queue.
+The queue is initialized to be NULL here, but the struct itself will be greatly utilized in sem_wait and sem_post.
+
+- sem_wait -> checks if current value is 0, otherwise decrements. If it is 0, schedules and also sets the 
+state of the thread to SBLOCKED. SBLOCKED is an alternative to the BLOCKED state that I utilized to avoid confusion
+of code logic. It is important to distinguish the two because BLOCKED requires checking target threads which is a 
+feature associated with pthread_join, not semaphores.
+
+- sem_post -> increments a semaphore and pops the thread in it - pop also frees the memory of the qt data structure as it is
+no longer needed (but keeps the original thread untouched).
+
+- sem_destroy -> frees memory from queue and then frees memory from semaphore
+
+challenges:
+1. did not follow specification
+2. did not follow specification when I hit a wall
+3. wasted 10+ hours because I did not follow specification 
+4. semaphores are also kinda tough to test
+
+
+
+
